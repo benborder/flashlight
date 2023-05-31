@@ -27,7 +27,7 @@ class ContainerTestClass : public Sequential {
     auto orphanParamIdxMap = other.getOrphanedParamsIdxMap();
     for (int i = -1; i < static_cast<int>(other.modules_.size()); ++i) {
       if (i >= 0) {
-        add(other.modules_[i]->clone());
+        add(other.modules_[i]);
       }
       auto [paramIter, pEnd] = orphanParamIdxMap.equal_range(i);
       for (; paramIter != pEnd; ++paramIter) {
@@ -802,6 +802,7 @@ TEST(ModuleTest, ContainerReplaceParam) {
   seq.add(ReLU());
   seq.add(Linear(20, 30));
   seq.addParam(Variable(fl::rand({5, 5}), true));
+  seq.add(std::make_shared<Linear>(30,40));
   auto seqCopy = seq;
 
   // Change the first parameter
@@ -833,6 +834,8 @@ TEST(ModuleTest, ContainerReplaceParam) {
   ASSERT_FALSE(allClose(seqCopy.param(6), seq.param(6)));
   seqCopy.setParams(new_param, 6);
   ASSERT_TRUE(allClose(seqCopy.param(6), seq.param(6)));
+
+  ASSERT_TRUE(seqCopy.module(3).get() == seq.module(3).get());
 }
 
 TEST(ModuleTest, AdaptiveSoftMaxPredict) {

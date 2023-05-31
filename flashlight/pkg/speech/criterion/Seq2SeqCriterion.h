@@ -67,7 +67,7 @@ class Seq2SeqCriterion : public SequenceCriterion {
       int nAttnRound = 1,
       float dropOut = 0.0);
 
-  std::shared_ptr<Module> clone() const override;
+  std::unique_ptr<Module> clone() const override;
 
   std::vector<fl::Variable> forward(
       const std::vector<fl::Variable>& inputs) override;
@@ -105,20 +105,20 @@ class Seq2SeqCriterion : public SequenceCriterion {
 
   std::string prettyString() const override;
 
-  std::shared_ptr<fl::Embedding> embedding() const {
-    return std::static_pointer_cast<fl::Embedding>(module(0));
+  fl::Embedding* embedding() const {
+    return static_cast<fl::Embedding*>(module(0).get());
   }
 
-  std::shared_ptr<fl::RNN> decodeRNN(int n) const {
-    return std::static_pointer_cast<fl::RNN>(module(n + 1));
+  fl::RNN* decodeRNN(int n) const {
+    return static_cast<fl::RNN*>(module(n + 1).get());
   }
 
-  std::shared_ptr<AttentionBase> attention(int n) const {
-    return std::static_pointer_cast<AttentionBase>(module(nAttnRound_ + n + 2));
+  AttentionBase* attention(int n) const {
+    return static_cast<AttentionBase*>(module(nAttnRound_ + n + 2).get());
   }
 
-  std::shared_ptr<fl::Linear> linearOut() const {
-    return std::static_pointer_cast<fl::Linear>(module(nAttnRound_ + 1));
+  fl::Linear* linearOut() const {
+    return static_cast<fl::Linear*>(module(nAttnRound_ + 1).get());
   }
 
   fl::Variable startEmbedding() const {

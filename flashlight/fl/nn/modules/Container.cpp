@@ -11,6 +11,69 @@
 
 namespace fl {
 
+ModuleWrapper::ModuleWrapper(std::unique_ptr<Module> ptr)
+    : ptr_(std::move(ptr)) {}
+
+ModuleWrapper::ModuleWrapper(std::shared_ptr<Module> ptr)
+    : ptr_(std::move(ptr)) {}
+
+ModuleWrapper::ModuleWrapper(const ModuleWrapper& other) {
+  if (std::holds_alternative<std::unique_ptr<Module>>(other.ptr_)) {
+    ptr_ = std::get<std::unique_ptr<Module>>(other.ptr_)->clone();
+  } else if (std::holds_alternative<std::shared_ptr<Module>>(other.ptr_)) {
+    ptr_ = std::get<std::shared_ptr<Module>>(other.ptr_);
+  }
+}
+
+void ModuleWrapper::reset() {
+  if (std::holds_alternative<std::unique_ptr<Module>>(ptr_)) {
+    std::get<std::unique_ptr<Module>>(ptr_).reset();
+  } else if (std::holds_alternative<std::shared_ptr<Module>>(ptr_)) {
+    std::get<std::shared_ptr<Module>>(ptr_).reset();
+  }
+}
+
+Module* ModuleWrapper::get() const {
+  if (std::holds_alternative<std::unique_ptr<Module>>(ptr_)) {
+    return std::get<std::unique_ptr<Module>>(ptr_).get();
+  } else if (std::holds_alternative<std::shared_ptr<Module>>(ptr_)) {
+    return std::get<std::shared_ptr<Module>>(ptr_).get();
+  } else {
+    return nullptr;
+  }
+}
+
+Module* ModuleWrapper::operator->() const {
+  if (std::holds_alternative<std::unique_ptr<Module>>(ptr_)) {
+    return std::get<std::unique_ptr<Module>>(ptr_).get();
+  } else if (std::holds_alternative<std::shared_ptr<Module>>(ptr_)) {
+    return std::get<std::shared_ptr<Module>>(ptr_).get();
+  }
+  return nullptr;
+}
+
+ModuleWrapper::operator bool() const noexcept {
+  if (ptr_.valueless_by_exception()) {
+    return false;
+  } else if (std::holds_alternative<std::unique_ptr<Module>>(ptr_)) {
+    return std::get<std::unique_ptr<Module>>(ptr_) != nullptr;
+  } else if (std::holds_alternative<std::shared_ptr<Module>>(ptr_)) {
+    return std::get<std::shared_ptr<Module>>(ptr_) != nullptr;
+  }
+  return false;
+}
+
+std::shared_ptr<Module> ModuleWrapper::make_shared() {
+  if (ptr_.valueless_by_exception()) {
+    return nullptr;
+  }
+  if (std::holds_alternative<std::unique_ptr<Module>>(ptr_)) {
+    ptr_ = std::shared_ptr<Module>(
+        std::move(std::get<std::unique_ptr<Module>>(ptr_)));
+  }
+  return std::get<std::shared_ptr<Module>>(ptr_);
+}
+
 Container::Container() = default;
 
 void Container::clear() {
@@ -39,11 +102,11 @@ std::unordered_multimap<int, int> Container::getOrphanedParamsIdxMap() const {
   return orphanedParamsIdxMap;
 }
 
-ModulePtr Container::module(int id) const {
+const ModuleWrapper& Container::module(int id) const {
   return modules_[id];
 }
 
-std::vector<ModulePtr> Container::modules() const {
+std::vector<ModuleWrapper> Container::modules() const {
   return modules_;
 }
 

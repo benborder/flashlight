@@ -10,15 +10,49 @@
 #include <memory>
 #include <stdexcept>
 #include <unordered_map>
+#include <variant>
 
 #include <cereal/types/tuple.hpp>
 #include <cereal/types/unordered_map.hpp>
+#include <cereal/types/variant.hpp>
 
 #include "flashlight/fl/nn/modules/Module.h"
 
 namespace fl {
 
 typedef std::shared_ptr<Module> ModulePtr;
+
+class ModuleWrapper {
+ public:
+  ModuleWrapper() = default;
+  /**
+   * Constructs with single ownership of a Module. Intensionally implicit.
+   *
+   * @param ptr The unique pointer to wrap
+   */
+  explicit ModuleWrapper(std::unique_ptr<Module> ptr);
+  /**
+   * Constructs with shared ownership of a Module. Intensionally implicit.
+   *
+   * @param ptr The shared pointer to wrap
+   */
+  explicit ModuleWrapper(std::shared_ptr<Module> ptr);
+  /**
+   * Creates a deep copy if a unique_ptr or shallow copy if a shared_ptr
+   */
+  ModuleWrapper(const ModuleWrapper& other);
+  void reset();
+  Module* get() const;
+  Module* operator->() const;
+  explicit operator bool() const noexcept;
+
+  std::shared_ptr<Module> make_shared();
+
+ protected:
+  std::variant<std::unique_ptr<Module>, std::shared_ptr<Module>> ptr_;
+
+  FL_SAVE_LOAD(ptr_)
+};
 
 /**
  * A computation unit capable of forward computation that contains a
@@ -36,7 +70,7 @@ class Container : public Module {
   /**
    * A collection of modules contained within a `Container`.
    */
-  std::vector<ModulePtr> modules_;
+  std::vector<ModuleWrapper> modules_;
 
   Container();
 
@@ -53,6 +87,17 @@ class Container : public Module {
    */
   std::unordered_multimap<int, int> getOrphanedParamsIdxMap() const;
 
+  void add(ModuleWrapper module) {
+    if (!module) {
+      throw std::invalid_argument("can't add null Module to Container");
+    }
+    for (int i = 0; i < module->numParams(); i++) {
+      childParamIdx_[params_.size()] = std::make_tuple(modules_.size(), i);
+      params_.push_back(module->param(i));
+    }
+    modules_.emplace_back(std::move(module));
+  }
+
  public:
   /**
    * Adds a module to a `Container` by making a copy of the underlying module if
@@ -62,7 +107,26 @@ class Container : public Module {
    */
   template <typename T>
   void add(T&& module) {
-    add(std::make_shared<std::remove_reference_t<T>>(std::forward<T>(module)));
+    std::unique_ptr<Module> mod(
+        std::make_unique<std::decay_t<T>>(std::forward<T>(module)));
+    add(std::move(mod));
+  }
+
+  /**
+   * Adds a module to `modules_`, and adds parameters to the container's
+   * `params_`. Takes exclusive ownership.
+   *
+   * @param module the module to add.
+   */
+  void add(std::unique_ptr<Module> module) {
+    if (!module) {
+      throw std::invalid_argument("can't add null Module to Container");
+    }
+    for (int i = 0; i < module->numParams(); i++) {
+      childParamIdx_[params_.size()] = std::make_tuple(modules_.size(), i);
+      params_.push_back(module->param(i));
+    }
+    modules_.emplace_back(std::move(module));
   }
 
   /**
@@ -90,14 +154,14 @@ class Container : public Module {
    * @param id the index of the module to return
    * @return a pointer to the requested module
    */
-  ModulePtr module(int id) const;
+  const ModuleWrapper& module(int id) const;
 
   /**
    * Returns pointers to each of `Module` in the `Container`.
    *
    * @return an ordered vector of pointers for each module.
    */
-  std::vector<ModulePtr> modules() const;
+  std::vector<ModuleWrapper> modules() const;
 
   /**
    * Switches all modules in the `Container` into train mode. See `Module`.
@@ -138,18 +202,18 @@ class Container : public Module {
 #define FL_BASIC_CONTAINER_CLONING(ContainerClass)         \
   ContainerClass(const ContainerClass& other) {            \
     for (auto& mod : other.modules_) {                     \
-      add(mod->clone());                                   \
+      add(mod);                                            \
     }                                                      \
   }                                                        \
   ContainerClass& operator=(const ContainerClass& other) { \
     clear();                                               \
     for (auto& mod : other.modules_) {                     \
-      add(mod->clone());                                   \
+      add(mod);                                            \
     }                                                      \
     return *this;                                          \
   }                                                        \
-  std::shared_ptr<Module> clone() const override {         \
-    return std::make_shared<ContainerClass>(*this);        \
+  std::unique_ptr<Module> clone() const override {         \
+    return std::make_unique<ContainerClass>(*this);        \
   }
 
 /**

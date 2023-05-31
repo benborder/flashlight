@@ -57,7 +57,7 @@ ConnectionistTemporalClassificationCriterion::
             scalemode /* = fl::lib::seq::CriterionScaleMode::NONE */)
     : scaleMode_(scalemode) {}
 
-std::shared_ptr<Module> ConnectionistTemporalClassificationCriterion::clone()
+std::unique_ptr<Module> ConnectionistTemporalClassificationCriterion::clone()
     const {
   throw std::runtime_error(
       "Cloning is unimplemented in Module 'ConnectionistTemporalClassificationCriterion'");

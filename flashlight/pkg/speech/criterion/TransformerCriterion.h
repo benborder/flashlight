@@ -49,7 +49,7 @@ class TransformerCriterion : public SequenceCriterion {
       double pDropout,
       double pLayerDrop);
 
-  std::shared_ptr<Module> clone() const override;
+  std::unique_ptr<Module> clone() const override;
 
   std::vector<fl::Variable> forward(
       const std::vector<fl::Variable>& inputs) override;
@@ -87,20 +87,20 @@ class TransformerCriterion : public SequenceCriterion {
 
   std::string prettyString() const override;
 
-  std::shared_ptr<fl::Embedding> embedding() const {
-    return std::static_pointer_cast<fl::Embedding>(module(0));
+  fl::Embedding* embedding() const {
+    return static_cast<fl::Embedding*>(module(0).get());
   }
 
-  std::shared_ptr<fl::Transformer> layer(int i) const {
-    return std::static_pointer_cast<fl::Transformer>(module(i + 1));
+  fl::Transformer* layer(int i) const {
+    return static_cast<fl::Transformer*>(module(i + 1).get());
   }
 
-  std::shared_ptr<fl::Linear> linearOut() const {
-    return std::static_pointer_cast<fl::Linear>(module(nLayer_ + 1));
+  fl::Linear* linearOut() const {
+    return static_cast<fl::Linear*>(module(nLayer_ + 1).get());
   }
 
-  std::shared_ptr<AttentionBase> attention() const {
-    return std::static_pointer_cast<AttentionBase>(module(nLayer_ + 2));
+  AttentionBase* attention() const {
+    return static_cast<AttentionBase*>(module(nLayer_ + 2).get());
   }
 
   fl::Variable startEmbedding() const {

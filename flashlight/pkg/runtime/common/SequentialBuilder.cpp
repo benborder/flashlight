@@ -85,8 +85,8 @@ fl::Variable forwardSequentialModuleWithPadMask(
   auto ntwrkSeq = std::dynamic_pointer_cast<fl::Sequential>(ntwrk);
   auto output = input;
   for (auto& module : ntwrkSeq->modules()) {
-    auto tr = std::dynamic_pointer_cast<fl::Transformer>(module);
-    auto cfr = std::dynamic_pointer_cast<fl::Conformer>(module);
+    auto tr = dynamic_cast<fl::Transformer*>(module.get());
+    auto cfr = dynamic_cast<fl::Conformer*>(module.get());
     if (tr != nullptr || cfr != nullptr) {
       output = module->forward({output, fl::noGrad(padMask)}).front();
     } else {

@@ -129,7 +129,7 @@ Seq2SeqCriterion::Seq2SeqCriterion(
   setUseSequentialDecoder();
 }
 
-std::shared_ptr<Module> Seq2SeqCriterion::clone() const {
+std::unique_ptr<Module> Seq2SeqCriterion::clone() const {
   throw std::runtime_error(
       "Cloning is unimplemented in Module 'Seq2SeqCriterion'");
 }
@@ -629,9 +629,9 @@ void Seq2SeqCriterion::setUseSequentialDecoder() {
       samplingStrategy_ == fl::pkg::speech::kGumbelSampling || inputFeeding_) {
     useSequentialDecoder_ = true;
   } else if (
-      std::dynamic_pointer_cast<SimpleLocationAttention>(attention(0)) ||
-      std::dynamic_pointer_cast<LocationAttention>(attention(0)) ||
-      std::dynamic_pointer_cast<NeuralLocationAttention>(attention(0))) {
+      dynamic_cast<SimpleLocationAttention*>(attention(0)) ||
+      dynamic_cast<LocationAttention*>(attention(0)) ||
+      dynamic_cast<NeuralLocationAttention*>(attention(0))) {
     useSequentialDecoder_ = true;
   } else if (
       window_ && trainWithWindow_ &&
